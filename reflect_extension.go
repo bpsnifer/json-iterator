@@ -351,7 +351,8 @@ func describeStruct(ctx *ctx, typ reflect2.Type) *StructDescriptor {
 				for _, binding := range structDescriptor.Fields {
 					binding.levels = append([]int{i}, binding.levels...)
 					omitempty := binding.Encoder.(*structFieldEncoder).omitempty
-					binding.Encoder = &structFieldEncoder{field, binding.Encoder, omitempty}
+					skipField := binding.Encoder.(*structFieldEncoder).skipField
+					binding.Encoder = &structFieldEncoder{field, binding.Encoder, omitempty, skipField}
 					binding.Decoder = &structFieldDecoder{field, binding.Decoder}
 					embeddedBindings = append(embeddedBindings, binding)
 				}
@@ -363,8 +364,9 @@ func describeStruct(ctx *ctx, typ reflect2.Type) *StructDescriptor {
 					for _, binding := range structDescriptor.Fields {
 						binding.levels = append([]int{i}, binding.levels...)
 						omitempty := binding.Encoder.(*structFieldEncoder).omitempty
+						skipField := binding.Encoder.(*structFieldEncoder).skipField
 						binding.Encoder = &dereferenceEncoder{binding.Encoder}
-						binding.Encoder = &structFieldEncoder{field, binding.Encoder, omitempty}
+						binding.Encoder = &structFieldEncoder{field, binding.Encoder, omitempty,skipField}
 						binding.Decoder = &dereferenceDecoder{ptrType.Elem(), binding.Decoder}
 						binding.Decoder = &structFieldDecoder{field, binding.Decoder}
 						embeddedBindings = append(embeddedBindings, binding)
@@ -443,6 +445,7 @@ func (bindings sortableBindings) Swap(i, j int) {
 func processTags(structDescriptor *StructDescriptor, cfg *frozenConfig) {
 	for _, binding := range structDescriptor.Fields {
 		shouldOmitEmpty := false
+		skipField := false
 		tagParts := strings.Split(binding.Field.Tag().Get(cfg.getTagKey()), ",")
 		for _, tagPart := range tagParts[1:] {
 			if tagPart == "omitempty" {
@@ -455,10 +458,12 @@ func processTags(structDescriptor *StructDescriptor, cfg *frozenConfig) {
 					binding.Decoder = &stringModeNumberDecoder{binding.Decoder}
 					binding.Encoder = &stringModeNumberEncoder{binding.Encoder}
 				}
+			} else if tagPart == "ignore" {
+				skipField = true
 			}
 		}
 		binding.Decoder = &structFieldDecoder{binding.Field, binding.Decoder}
-		binding.Encoder = &structFieldEncoder{binding.Field, binding.Encoder, shouldOmitEmpty}
+		binding.Encoder = &structFieldEncoder{binding.Field, binding.Encoder, shouldOmitEmpty, skipField}
 	}
 }
 

@@ -103,6 +103,7 @@ type structFieldEncoder struct {
 	field        reflect2.StructField
 	fieldEncoder ValEncoder
 	omitempty    bool
+	skipField    bool
 }
 
 func (encoder *structFieldEncoder) Encode(ptr unsafe.Pointer, stream *Stream) {
@@ -145,7 +146,7 @@ func (encoder *structEncoder) Encode(ptr unsafe.Pointer, stream *Stream) {
 	stream.WriteObjectStart()
 	isNotFirst := false
 	for _, field := range encoder.fields {
-		if field.encoder.omitempty && field.encoder.IsEmpty(ptr) {
+		if (field.encoder.omitempty && field.encoder.IsEmpty(ptr)) || field.encoder.skipField {
 			continue
 		}
 		if field.encoder.IsEmbeddedPtrNil(ptr) {
